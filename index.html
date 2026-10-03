@@ -28,11 +28,11 @@
 </head>
 <body>
 <div id="wrap"><canvas id="game" width="720" height="1180"></canvas></div>
-<div id="vstamp">v8</div>
+<div id="vstamp">v9</div>
 <script>
 /* Portal: none (itch.io / standalone).
    Sin SDK: el juego corre con localStorage y sin anuncios. */
-/* PAINT DEMOLITION BUILD v8 */
+/* PAINT DEMOLITION BUILD v9 */
 "use strict";
 /* ============================================================
    PAINT DEMOLITION — physics smash x painting.
@@ -1036,13 +1036,35 @@ function drawBlock(b){
   ctx.save(); ctx.translate(b.x,b.y); ctx.rotate(b.ang);
   const sp=blockSprite(b.type,b.w,b.h);
   ctx.drawImage(sp.c,-sp.pw/2,-sp.ph/2,sp.pw,sp.ph);
-  // pintura real: capa sólida recortada a la forma del bloque + borde encima
+  // pintura real: capa CONTINUA tipo metaball (blur fusiona, sin bolas visibles)
   ctx.save();
   rr(ctx,-b.w/2,-b.h/2,b.w,b.h,7); ctx.clip();
+  // pasada 1: base difuminada que fusiona todo en una sola mancha orgánica
+  ctx.save();
+  ctx.filter="blur(6px)";
   for(const pt of b.pts){
     if(!pt.p) continue;
-    ctx.fillStyle=css(pt.c,0.93);
+    ctx.fillStyle=css(pt.c,0.95);
     ctx.beginPath(); ctx.arc(pt.lx,pt.ly,13,0,TAU); ctx.fill();
+  }
+  ctx.restore();
+  // pasada 2: centro sólido para que el color quede intenso
+  for(const pt of b.pts){
+    if(!pt.p) continue;
+    ctx.fillStyle=css(pt.c,0.55);
+    ctx.beginPath(); ctx.arc(pt.lx,pt.ly,9,0,TAU); ctx.fill();
+  }
+  // gotas escurriendo
+  for(const pt of b.pts){
+    if(!pt.p) continue;
+    const dh=((pt.lx*31+pt.ly*17)|0)%7;
+    if(dh<2){
+      const dw=3+((pt.lx*13)|0)%3, dl=12+((pt.ly*29)|0)%18;
+      ctx.fillStyle=css(shade(pt.c,0.85),0.9);
+      rr(ctx,pt.lx-dw/2,pt.ly+9,dw,dl,dw/2); ctx.fill();
+      ctx.fillStyle=css(pt.c,0.9);
+      ctx.beginPath(); ctx.arc(pt.lx,pt.ly+9+dl,dw*0.7,0,TAU); ctx.fill();
+    }
   }
   ctx.restore();
   ctx.strokeStyle="rgba(0,0,0,0.38)"; ctx.lineWidth=2.5;
