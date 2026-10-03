@@ -28,11 +28,11 @@
 </head>
 <body>
 <div id="wrap"><canvas id="game" width="720" height="1180"></canvas></div>
-<div id="vstamp">v7</div>
+<div id="vstamp">v8</div>
 <script>
 /* Portal: none (itch.io / standalone).
    Sin SDK: el juego corre con localStorage y sin anuncios. */
-/* PAINT DEMOLITION BUILD v7 */
+/* PAINT DEMOLITION BUILD v8 */
 "use strict";
 /* ============================================================
    PAINT DEMOLITION — physics smash x painting.
@@ -1036,12 +1036,19 @@ function drawBlock(b){
   ctx.save(); ctx.translate(b.x,b.y); ctx.rotate(b.ang);
   const sp=blockSprite(b.type,b.w,b.h);
   ctx.drawImage(sp.c,-sp.pw/2,-sp.ph/2,sp.pw,sp.ph);
-  // pintura tipo spray: puntitos que dejan ver el bloque (nunca una bola)
+  // pintura real: capa sólida recortada a la forma del bloque + borde encima
+  ctx.save();
+  rr(ctx,-b.w/2,-b.h/2,b.w,b.h,7); ctx.clip();
   for(const pt of b.pts){
     if(!pt.p) continue;
-    ctx.fillStyle=css(pt.c,0.62);
-    ctx.beginPath(); ctx.arc(pt.lx,pt.ly,7.5,0,TAU); ctx.fill();
+    ctx.fillStyle=css(pt.c,0.93);
+    ctx.beginPath(); ctx.arc(pt.lx,pt.ly,13,0,TAU); ctx.fill();
   }
+  ctx.restore();
+  ctx.strokeStyle="rgba(0,0,0,0.38)"; ctx.lineWidth=2.5;
+  rr(ctx,-b.w/2,-b.h/2,b.w,b.h,7); ctx.stroke();
+  ctx.strokeStyle="rgba(255,255,255,0.28)"; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(-b.w/2+8,-b.h/2+3.5); ctx.lineTo(b.w/2-8,-b.h/2+3.5); ctx.stroke();
   ctx.restore();
 }
 function drawCannon(){
