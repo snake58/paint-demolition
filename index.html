@@ -28,11 +28,11 @@
 </head>
 <body>
 <div id="wrap"><canvas id="game" width="720" height="1180"></canvas></div>
-<div id="vstamp">v6</div>
+<div id="vstamp">v7</div>
 <script>
 /* Portal: none (itch.io / standalone).
    Sin SDK: el juego corre con localStorage y sin anuncios. */
-/* PAINT DEMOLITION BUILD v6 */
+/* PAINT DEMOLITION BUILD v7 */
 "use strict";
 /* ============================================================
    PAINT DEMOLITION — physics smash x painting.
@@ -1036,23 +1036,11 @@ function drawBlock(b){
   ctx.save(); ctx.translate(b.x,b.y); ctx.rotate(b.ang);
   const sp=blockSprite(b.type,b.w,b.h);
   ctx.drawImage(sp.c,-sp.pw/2,-sp.ph/2,sp.pw,sp.ph);
-  // capa de pintura: tiñe la superficie, se ve el bloque debajo (no una bola)
+  // pintura tipo spray: puntitos que dejan ver el bloque (nunca una bola)
   for(const pt of b.pts){
     if(!pt.p) continue;
-    ctx.fillStyle=css(pt.c,0.72);
-    ctx.beginPath(); ctx.arc(pt.lx,pt.ly,11,0,TAU); ctx.fill();
-  }
-  // salpicaduras (planas, como pintura fresca — no bolas 3D)
-  for(const s of b.splats){
-    ctx.fillStyle=css(s.c,0.55);
-    ctx.beginPath(); ctx.ellipse(s.lx,s.ly,s.r*0.7,s.r*0.58,0.4,0,TAU); ctx.fill();
-    if(s.r>13){ // wet drip
-      const dw=s.r*0.34, dl=s.r*(0.9+(((s.lx*13)|0)%5)/5*0.7);
-      ctx.fillStyle=css(s.c,0.6);
-      rr(ctx,s.lx-dw/2,s.ly+s.r*0.5,dw,dl,dw/2); ctx.fill();
-      ctx.fillStyle="rgba(255,255,255,0.32)";
-      rr(ctx,s.lx-dw/2+dw*0.18,s.ly+s.r*0.5+3,dw*0.28,Math.max(2,dl-7),dw*0.14); ctx.fill();
-    }
+    ctx.fillStyle=css(pt.c,0.62);
+    ctx.beginPath(); ctx.arc(pt.lx,pt.ly,7.5,0,TAU); ctx.fill();
   }
   ctx.restore();
 }
