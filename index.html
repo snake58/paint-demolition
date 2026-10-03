@@ -28,11 +28,11 @@
 </head>
 <body>
 <div id="wrap"><canvas id="game" width="720" height="1180"></canvas></div>
-<div id="vstamp">v9</div>
+<div id="vstamp">v10</div>
 <script>
 /* Portal: none (itch.io / standalone).
    Sin SDK: el juego corre con localStorage y sin anuncios. */
-/* PAINT DEMOLITION BUILD v9 */
+/* PAINT DEMOLITION BUILD v10 */
 "use strict";
 /* ============================================================
    PAINT DEMOLITION — physics smash x painting.
@@ -1036,34 +1036,55 @@ function drawBlock(b){
   ctx.save(); ctx.translate(b.x,b.y); ctx.rotate(b.ang);
   const sp=blockSprite(b.type,b.w,b.h);
   ctx.drawImage(sp.c,-sp.pw/2,-sp.ph/2,sp.pw,sp.ph);
-  // pintura real: capa CONTINUA tipo metaball (blur fusiona, sin bolas visibles)
+  // pintura estilo paintball: centro denso irregular + salpicaduras + gotas + brillo
   ctx.save();
   rr(ctx,-b.w/2,-b.h/2,b.w,b.h,7); ctx.clip();
-  // pasada 1: base difuminada que fusiona todo en una sola mancha orgánica
+  const R2=mulberry32((b.w*7+b.h*13)|0);
+  // 1) centro denso: manchas irregulares superpuestas (no círculos perfectos)
   ctx.save();
-  ctx.filter="blur(6px)";
+  ctx.filter="blur(4px)";
   for(const pt of b.pts){
     if(!pt.p) continue;
-    ctx.fillStyle=css(pt.c,0.95);
-    ctx.beginPath(); ctx.arc(pt.lx,pt.ly,13,0,TAU); ctx.fill();
+    const n=2+(((pt.lx*7+pt.ly*13)|0)%3); // 2-4 manchas por punto
+    for(let k=0;k<n;k++){
+      const ox=(R2()-0.5)*14, oy=(R2()-0.5)*14;
+      const pr=8+R2()*9;
+      ctx.fillStyle=css(pt.c,0.95);
+      ctx.beginPath(); ctx.arc(pt.lx+ox,pt.ly+oy,pr,0,TAU); ctx.fill();
+    }
   }
   ctx.restore();
-  // pasada 2: centro sólido para que el color quede intenso
+  // 2) salpicaduras: puntitos satélite alrededor (borde irregular como paintball)
   for(const pt of b.pts){
     if(!pt.p) continue;
-    ctx.fillStyle=css(pt.c,0.55);
-    ctx.beginPath(); ctx.arc(pt.lx,pt.ly,9,0,TAU); ctx.fill();
-  }
-  // gotas escurriendo
-  for(const pt of b.pts){
-    if(!pt.p) continue;
-    const dh=((pt.lx*31+pt.ly*17)|0)%7;
-    if(dh<2){
-      const dw=3+((pt.lx*13)|0)%3, dl=12+((pt.ly*29)|0)%18;
-      ctx.fillStyle=css(shade(pt.c,0.85),0.9);
-      rr(ctx,pt.lx-dw/2,pt.ly+9,dw,dl,dw/2); ctx.fill();
+    const ns=((pt.lx*31+pt.ly*17)|0)%4;
+    for(let k=0;k<ns;k++){
+      const a=R2()*TAU, d=14+R2()*22;
+      const sx=pt.lx+Math.cos(a)*d, sy=pt.ly+Math.sin(a)*d;
+      const sr=1.5+R2()*3.5;
       ctx.fillStyle=css(pt.c,0.9);
-      ctx.beginPath(); ctx.arc(pt.lx,pt.ly+9+dl,dw*0.7,0,TAU); ctx.fill();
+      ctx.beginPath(); ctx.arc(sx,sy,sr,0,TAU); ctx.fill();
+    }
+  }
+  // 3) gotas escurriendo hacia abajo
+  for(const pt of b.pts){
+    if(!pt.p) continue;
+    const dh=((pt.lx*31+pt.ly*17)|0)%6;
+    if(dh<2){
+      const dw=2.5+R2()*2.5, dl=14+R2()*26;
+      const dx=pt.lx+(R2()-0.5)*10;
+      ctx.fillStyle=css(shade(pt.c,0.82),0.92);
+      rr(ctx,dx-dw/2,pt.ly+6,dw,dl,dw/2); ctx.fill();
+      ctx.fillStyle=css(pt.c,0.95);
+      ctx.beginPath(); ctx.arc(dx,pt.ly+6+dl,dw*0.85,0,TAU); ctx.fill();
+    }
+  }
+  // 4) brillo húmedo: highlights suaves en las zonas densas
+  ctx.fillStyle="rgba(255,255,255,0.18)";
+  for(const pt of b.pts){
+    if(!pt.p) continue;
+    if(((pt.lx*13+pt.ly*29)|0)%5<2){
+      ctx.beginPath(); ctx.ellipse(pt.lx-3,pt.ly-4,7,4,-0.5,0,TAU); ctx.fill();
     }
   }
   ctx.restore();
