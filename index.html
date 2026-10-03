@@ -28,11 +28,11 @@
 </head>
 <body>
 <div id="wrap"><canvas id="game" width="720" height="1180"></canvas></div>
-<div id="vstamp">v11</div>
+<div id="vstamp">v12</div>
 <script>
 /* Portal: none (itch.io / standalone).
    Sin SDK: el juego corre con localStorage y sin anuncios. */
-/* PAINT DEMOLITION BUILD v11 */
+/* PAINT DEMOLITION BUILD v12 */
 "use strict";
 /* ============================================================
    PAINT DEMOLITION — physics smash x painting.
@@ -730,7 +730,9 @@ let birds=[];
 for(let i=0;i<4;i++) birds.push({x:Math.random()*W,y:110+Math.random()*210,v:13+Math.random()*10,ph:Math.random()*7});
 let TW=[]; { const R=mulberry32(99); for(let i=0;i<14;i++) TW.push({x:R()*W,y:R()*H*0.34}); }
 let skyline=[];
-(function(){ let x=0; const R=mulberry32(7); while(x<W){ const w=40+R()*70,h=60+R()*150; skyline.push({x,w,h}); x+=w+6; } })();
+(function(){ let x=0; const R=mulberry32(7); while(x<W){ const w=40+R()*70,h=60+R()*150;
+  const t=R(); const type=t<0.25?"step":t<0.45?"antenna":t<0.6?"tank":"rect";
+  skyline.push({x,w,h,type,seed:(R()*1000)|0}); x+=w+6; } })();
 let skylineFar=[];
 (function(){ let x=-20; const R=mulberry32(21); while(x<W+20){ const w=50+R()*80,h=40+R()*95; skylineFar.push({x,w,h}); x+=w+10; } })();
 
@@ -792,15 +794,42 @@ function buildSky(){
   const hz=x.createLinearGradient(0,GY-230,0,GY);
   hz.addColorStop(0,"rgba(247,178,103,0)"); hz.addColorStop(1,"rgba(247,178,103,0.38)");
   x.fillStyle=hz; x.fillRect(0,GY-230,W,230);
-  // 5. near skyline (dark + warm lit windows)
-  x.fillStyle="#2b1f45";
-  for(const b of skyline) x.fillRect(b.x,GY-b.h,b.w,b.h);
-  for(const b of skyline)
-    for(let wy=GY-b.h+14;wy<GY-14;wy+=26) for(let wx=b.x+9;wx<b.x+b.w-9;wx+=22){
-      const h=((wx*7+wy*13)|0)%9;
-      if(h<4){ x.fillStyle=h===0?"rgba(255,209,102,0.95)":"rgba(255,190,120,0.45)";
-        x.fillRect(wx,wy,7,10); }
+  // 5. near skyline (dark + warm lit windows + detalles)
+  for(const b of skyline){
+    const R=mulberry32(b.seed);
+    x.fillStyle="#2b1f45";
+    if(b.type==="step"){
+      const sw=b.w*0.7, sh=b.h*0.75;
+      x.fillRect(b.x,GY-b.h,b.w,b.h);
+      x.fillRect(b.x+(b.w-sw)/2,GY-b.h-sh*0.25,sw,sh*0.25+b.h*0.25);
+    } else {
+      x.fillRect(b.x,GY-b.h,b.w,b.h);
     }
+    // antena
+    if(b.type==="antenna"){
+      const ax=b.x+b.w/2;
+      x.strokeStyle="#2b1f45"; x.lineWidth=3;
+      x.beginPath(); x.moveTo(ax,GY-b.h); x.lineTo(ax,GY-b.h-28); x.stroke();
+      x.fillStyle="rgba(255,100,100,0.9)";
+      x.beginPath(); x.arc(ax,GY-b.h-30,3,0,TAU); x.fill();
+    }
+    // tanque de agua
+    if(b.type==="tank"){
+      const tx=b.x+b.w/2;
+      x.fillStyle="#241a3a";
+      x.fillRect(tx-12,GY-b.h-18,24,14);
+      x.beginPath(); x.moveTo(tx-12,GY-b.h-18); x.lineTo(tx,GY-b.h-28); x.lineTo(tx+12,GY-b.h-18); x.closePath(); x.fill();
+    }
+    // ventanas con patrón variado
+    for(let wy=GY-b.h+14;wy<GY-14;wy+=26) for(let wx=b.x+9;wx<b.x+b.w-9;wx+=22){
+      const h=((wx*7+wy*13+b.seed)|0)%10;
+      if(h<4){
+        x.fillStyle=h===0?"rgba(255,209,102,0.95)":h===1?"rgba(255,190,120,0.5)":"rgba(140,160,200,0.25)";
+        x.fillRect(wx,wy,7,10);
+        if(h===0){ x.fillStyle="rgba(255,255,255,0.35)"; x.fillRect(wx,wy,7,3); }
+      }
+    }
+  }
   // 6. ground with warm rim light + texture
   const gg=x.createLinearGradient(0,GY,0,H);
   gg.addColorStop(0,"#5c4c60"); gg.addColorStop(0.12,"#473d4d"); gg.addColorStop(0.4,"#322b3a"); gg.addColorStop(1,"#201b27");
@@ -861,12 +890,26 @@ function buildCannonSprites(){
     for(let i=0;i<10;i++){ const yy=12+R()*40;
       x.strokeStyle="rgba(255,255,255,"+(0.05+R()*0.07)+")"; x.lineWidth=1.6;
       x.beginPath(); x.moveTo(8,yy); x.lineTo(140,yy); x.stroke(); }
-    // gold bands
+    // gold bands con remaches
     for(const bx of [34,108]){
       let bg2=x.createLinearGradient(0,0,0,64);
       bg2.addColorStop(0,"#ffe27a"); bg2.addColorStop(0.5,"#d99a2b"); bg2.addColorStop(1,"#8a5c10");
       x.fillStyle=bg2; x.fillRect(bx,8,7,48);
+      x.fillStyle="rgba(60,35,5,0.8)";
+      for(const ry of [16,32,48]){ x.beginPath(); x.arc(bx+3.5,ry,1.8,0,TAU); x.fill(); }
+      x.fillStyle="rgba(255,255,255,0.5)";
+      for(const ry of [16,32,48]){ x.beginPath(); x.arc(bx+2.8,ry-0.8,0.8,0,TAU); x.fill(); }
     }
+    // gotas de pintura en el cañón (es un cañón de pintura)
+    const pc=["#ff5252","#4dabf7","#69db7c"][(R()*3)|0];
+    x.fillStyle=pc+"";
+    x.globalAlpha=0.85;
+    for(let di=0;di<3;di++){
+      const dx2=20+R()*100, dw2=3+R()*3, dl2=6+R()*10;
+      x.fillRect(dx2,52,dw2,dl2);
+      x.beginPath(); x.arc(dx2+dw2/2,52+dl2,dw2*0.7,0,TAU); x.fill();
+    }
+    x.globalAlpha=1;
     // cyan energy strip (glow accent)
     x.fillStyle="rgba(125,249,255,0.9)"; rr(x,44,14,58,7,3.5); x.fill();
     x.fillStyle="rgba(255,255,255,0.85)"; rr(x,46,14.8,54,2.6,1.3); x.fill();
