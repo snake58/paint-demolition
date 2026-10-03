@@ -28,11 +28,11 @@
 </head>
 <body>
 <div id="wrap"><canvas id="game" width="720" height="1180"></canvas></div>
-<div id="vstamp">v4</div>
+<div id="vstamp">v5</div>
 <script>
 /* Portal: none (itch.io / standalone).
    Sin SDK: el juego corre con localStorage y sin anuncios. */
-/* PAINT DEMOLITION BUILD v4 */
+/* PAINT DEMOLITION BUILD v5 */
 "use strict";
 /* ============================================================
    PAINT DEMOLITION — physics smash x painting.
@@ -1036,14 +1036,16 @@ function drawBlock(b){
   ctx.save(); ctx.translate(b.x,b.y); ctx.rotate(b.ang);
   const sp=blockSprite(b.type,b.w,b.h);
   ctx.drawImage(sp.c,-sp.pw/2,-sp.ph/2,sp.pw,sp.ph);
-  // paint splats (block-local, rotate with the block) — glossy with drips
+  // capa de pintura: los puntos pintados se ven como pintura plana en la superficie
+  for(const pt of b.pts){
+    if(!pt.p) continue;
+    ctx.fillStyle=css(pt.c,0.95);
+    ctx.beginPath(); ctx.arc(pt.lx,pt.ly,12.5,0,TAU); ctx.fill();
+  }
+  // salpicaduras (planas, como pintura fresca — no bolas 3D)
   for(const s of b.splats){
-    ctx.fillStyle="rgba(0,0,0,0.22)";
-    ctx.beginPath(); ctx.ellipse(s.lx,s.ly+1.6,s.r,s.r*0.82,0.4,0,TAU); ctx.fill();
-    ctx.fillStyle=css(s.c,0.96);
-    ctx.beginPath(); ctx.ellipse(s.lx,s.ly,s.r,s.r*0.82,0.4,0,TAU); ctx.fill();
-    ctx.fillStyle="rgba(255,255,255,0.36)";
-    ctx.beginPath(); ctx.ellipse(s.lx-s.r*0.28,s.ly-s.r*0.3,s.r*0.34,s.r*0.2,0.4,0,TAU); ctx.fill();
+    ctx.fillStyle=css(s.c,0.9);
+    ctx.beginPath(); ctx.ellipse(s.lx,s.ly,s.r*0.8,s.r*0.66,0.4,0,TAU); ctx.fill();
     if(s.r>13){ // wet drip
       const dw=s.r*0.34, dl=s.r*(0.9+(((s.lx*13)|0)%5)/5*0.7);
       ctx.fillStyle=css(s.c,0.96);
