@@ -28,11 +28,11 @@
 </head>
 <body>
 <div id="wrap"><canvas id="game" width="720" height="1180"></canvas></div>
-<div id="vstamp">v2</div>
+<div id="vstamp">v3</div>
 <script>
 /* Portal: none (itch.io / standalone).
    Sin SDK: el juego corre con localStorage y sin anuncios. */
-/* PAINT DEMOLITION BUILD v2 */
+/* PAINT DEMOLITION BUILD v3 */
 "use strict";
 /* ============================================================
    PAINT DEMOLITION — physics smash x painting.
@@ -233,6 +233,19 @@ function blockAABB(b){
   const hw=(b.w*c+b.h*s)/2, hh=(b.w*s+b.h*c)/2;
   return { x0:b.x-hw, x1:b.x+hw, y0:b.y-hh, y1:b.y+hh };
 }
+/* ¿el bloque está apoyado (suelo u otro bloque)? Si no, no debe dormirse:
+   un bloque dormido en el aire se queda flotando en el cielo para siempre. */
+function blockSupported(b){
+  const A=blockAABB(b);
+  if(A.y1>=GY-8) return true;
+  const bs=Game.blocks;
+  for(let i=0;i<bs.length;i++){
+    const o=bs[i]; if(o===b) continue;
+    const B=blockAABB(o);
+    if(B.x1>A.x0+6 && B.x0<A.x1-6 && B.y0<=A.y1+10 && B.y0>=A.y1-40) return true;
+  }
+  return false;
+}
 function makeBlock(x,y,w,h,type,R){
   const m = MAT[type]||MAT.wood;
   const b = { x,y,w,h,ang:0,va:0,vx:0,vy:0, dens:m.dens, type,
@@ -274,7 +287,13 @@ function physStep(dt){
     }
     // sleep check
     if(sp<14 && spA<0.25 && b.y>=GY-b.h-2){ b.vx=0; b.vy=0; b.va=0; b.sleep=true; }
-    else if(sp<10 && spA<0.2){ b._still=(b._still||0)+dt; if(b._still>0.5){ b.sleep=true; b.vx=b.vy=b.va=0; } }
+    else if(sp<10 && spA<0.2){
+      b._still=(b._still||0)+dt;
+      if(b._still>0.5){
+        if(blockSupported(b)){ b.sleep=true; b.vx=b.vy=b.va=0; }
+        else b._still=0; // en el aire: no dormirse, seguir cayendo
+      }
+    }
     else b._still=0;
   }
   // block-block (AABB approx, positional + impulse)
@@ -1639,6 +1658,22 @@ function runSelfTest(){
     ST("bloque cae al suelo", b.y<=GY && b.y>GY-200, "y="+b.y.toFixed(1));
     ST("sin NaN en física", isFinite(b.x)&&isFinite(b.y)&&isFinite(b.vx)&&isFinite(b.vy));
     ST("bloque duerme al reposar", b.sleep===true);
+    // regresión (3 oct 2026): bloque en el aire NO debe dormirse flotando
+    Game.blocks=[makeBlock(360,200,90,60,"wood")];
+    const ab=Game.blocks[0]; ab.sleep=false; ab.vx=0; ab.vy=0; ab.va=0;
+    ST("bloque en el aire no está apoyado", blockSupported(ab)===false);
+    let durmioEnAire=false;
+    for(let i=0;i<120;i++){ physStep(1/120); if(ab.sleep && ab.y<GY-200) durmioEnAire=true; }
+    ST("bloque no se duerme en el aire", !durmioEnAire, "y="+ab.y.toFixed(1)+" sleep="+ab.sleep);
+    // fuerza exacta la rama stillness en el aire: con código viejo se dormiría
+    Game.blocks=[makeBlock(360,200,90,60,"wood")];
+    const sb=Game.blocks[0]; sb.sleep=false; sb.vx=3; sb.vy=-12; sb.va=0; sb._still=0.5;
+    physStep(1/120);
+    ST("stillness en el aire no duerme", sb.sleep===false);
+    Game.blocks=[makeBlock(360,GY-30,90,60,"wood")];
+    ST("bloque en suelo sí apoyado", blockSupported(Game.blocks[0])===true);
+    Game.blocks=[makeBlock(360,GY-30,90,60,"wood"), makeBlock(360,GY-95,90,60,"wood")];
+    ST("bloque sobre otro sí apoyado", blockSupported(Game.blocks[1])===true);
     // pintura: gota pinta puntos
     Game.blocks=[makeBlock(360,500,100,70,"brick")];
     Game.totalPts=Game.blocks[0].pts.length; Game.paintedPts=0; Game.coverage=0;
