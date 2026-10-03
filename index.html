@@ -28,11 +28,11 @@
 </head>
 <body>
 <div id="wrap"><canvas id="game" width="720" height="1180"></canvas></div>
-<div id="vstamp">v12</div>
+<div id="vstamp">v13</div>
 <script>
 /* Portal: none (itch.io / standalone).
    Sin SDK: el juego corre con localStorage y sin anuncios. */
-/* PAINT DEMOLITION BUILD v12 */
+/* PAINT DEMOLITION BUILD v13 */
 "use strict";
 /* ============================================================
    PAINT DEMOLITION — physics smash x painting.
@@ -207,10 +207,36 @@ function saveProgress(){
   Store.set("best",Game.best); Store.set("maxLevel",Game.maxLevel);
   Store.set("lang",Game.lang); Store.set("muted",Game.muted?1:0);
 }
+/* ---- ranking mundial (Cloudflare Worker del Arcade) ---- */
+const RANK_URL="https://arcade-ranking.ivanalejo1920.workers.dev";
+function deviceId(){
+  let d=null; try{ d=localStorage.getItem("pd_did"); }catch(e){}
+  if(!d){ d="pd_"+Math.random().toString(36).slice(2)+Date.now().toString(36); try{ localStorage.setItem("pd_did",d); }catch(e){} }
+  return d;
+}
+function playerName(){ try{ return localStorage.getItem("pd_name")||""; }catch(e){ return ""; } }
+function setPlayerName(n){ try{ localStorage.setItem("pd_name",n); }catch(e){} }
+function submitScore(){
+  if(typeof fetch==="undefined") return;
+  if(!Game.best||Game.best<=0) return;
+  const name=(playerName()||"Jugador").slice(0,16);
+  fetch(RANK_URL+"/score",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({did:deviceId(),name:name,coins:Game.best})}).catch(()=>{});
+}
+let rankCache={list:[],ts:0,loading:false};
+function fetchRanking(){
+  if(typeof fetch==="undefined") return;
+  rankCache.loading=true;
+  fetch(RANK_URL+"/top?limit=50").then(r=>r.json()).then(d=>{
+    const arr=(d.top||[]).filter(x=>String(x.did||"").indexOf("pd_")===0);
+    arr.sort((a,b)=>b.coins-a.coins);
+    rankCache={list:arr.slice(0,20),ts:Date.now(),loading:false};
+  }).catch(()=>{ rankCache.loading=false; });
+}
 function loadProgress(){
   return Promise.all([Store.get("best"),Store.get("maxLevel"),Store.get("lang"),Store.get("muted")])
     .then(v=>{
-      if(v[0]!=null) Game.best=+v[0]||0;
+      if(v[0]!=null){ Game.best=+v[0]||0; if(Game.best>0) setTimeout(submitScore,3000); }
       if(v[1]!=null) Game.maxLevel=clamp(+v[1]||1,1,99);
       if(!FORCE_EN&&(v[2]==="es"||v[2]==="en")) Game.lang=v[2];
       if(v[3]!=null) Game.muted=v[3]==="1";
@@ -585,7 +611,7 @@ function evaluateEnd(){
     const s2=Game.target+0.08, s3=Game.target+0.16;
     Game.stars=1+(Game.coverage>=s2?1:0)+(Game.coverage>=s3?1:0);
     Game.score+=Game.shotsLeft*200+Math.round(Game.coverage*1000);
-    if(Game.score>Game.best){ Game.best=Game.score; Game.newBest=true; }
+    if(Game.score>Game.best){ Game.best=Game.score; Game.newBest=true; submitScore(); }
     if(Game.level>=Game.maxLevel && Game.level<99){ Game.maxLevel=Game.level+1; }
     saveProgress();
     // snapshot of the painted ruin NOW (before the results overlay covers the canvas)
@@ -1419,6 +1445,51 @@ function drawHUD(){
     ctx.lineCap="butt";
   }
 }
+function drawRanking(){
+  ctx.fillStyle="rgba(8,5,16,0.92)"; ctx.fillRect(0,0,W,H);
+  ctx.textAlign="center";
+  ctx.font="bold 44px -apple-system,'Segoe UI',Roboto,Arial,sans-serif";
+  ctx.fillStyle="#ffe27a";
+  ctx.fillText("🏆 RANKING MUNDIAL",W/2,120);
+  // nombre del jugador
+  const nm=playerName()||"Jugador";
+  ctx.font="24px -apple-system,'Segoe UI',Roboto,Arial,sans-serif";
+  ctx.fillStyle="rgba(255,255,255,0.8)";
+  ctx.fillText("Tú: "+nm,W/2,168);
+  button("setname",W/2,210,220,48,"✏️ Cambiar nombre",()=>{
+    const n=prompt("Tu nombre:",nm);
+    if(n&&n.trim()){ setPlayerName(n.trim().slice(0,16)); submitScore(); fetchRanking(); }
+  },{fontSize:20,color:"#4d4457",textColor:"#fff"});
+  drawButton(UI.buttons[UI.buttons.length-1]);
+  // lista
+  const y0=290;
+  if(rankCache.loading){
+    ctx.fillStyle="rgba(255,255,255,0.7)"; ctx.font="26px sans-serif";
+    ctx.fillText("Cargando...",W/2,y0+40);
+  } else if(rankCache.list.length===0){
+    ctx.fillStyle="rgba(255,255,255,0.7)"; ctx.font="26px sans-serif";
+    ctx.fillText("Sé el primero en el ranking!",W/2,y0+40);
+  } else {
+    ctx.font="26px -apple-system,'Segoe UI',Roboto,Arial,sans-serif";
+    const myDid=deviceId();
+    rankCache.list.forEach((e,i)=>{
+      const y=y0+i*44;
+      if(y>H-140) return;
+      const isMe=e.did===myDid;
+      if(isMe){ ctx.fillStyle="rgba(255,226,122,0.18)"; rr(ctx,W/2-280,y-28,560,40,20); ctx.fill(); }
+      const medal=i===0?"🥇":i===1?"🥈":i===2?"🥉":(i+1)+".";
+      ctx.fillStyle=isMe?"#ffe27a":"rgba(255,255,255,0.9)";
+      ctx.textAlign="left";
+      ctx.fillText(medal,W/2-270,y);
+      ctx.fillText(String(e.name||"Jugador").slice(0,16),W/2-200,y);
+      ctx.textAlign="right";
+      ctx.fillText(String(e.coins),W/2+270,y);
+      ctx.textAlign="center";
+    });
+  }
+  button("rankback",W/2,H-90,240,64,"◀ Volver",()=>{ Game.state="title"; },{fontSize:26,color:"#4d4457",textColor:"#fff"});
+  drawButton(UI.buttons[UI.buttons.length-1]);
+}
 function drawTitle(){
   // paint-splat backdrop behind logo
   ctx.globalAlpha=0.85;
@@ -1479,6 +1550,8 @@ function drawTitle(){
   ctx.font="bold 30px -apple-system,'Segoe UI',Roboto,Arial,sans-serif";
   ctx.fillStyle="#ffe27a";
   ctx.fillText(T("best")+": "+Game.best,W/2,640);
+  button("ranking",W/2,690,240,56,"🏆 RANKING",()=>{ fetchRanking(); Game.state="ranking"; },{fontSize:24,color:"#b197fc",textColor:"#241b3d"});
+  drawButton(UI.buttons[UI.buttons.length-1]);
   // level select
   ctx.fillStyle="#fff"; ctx.font="bold 34px -apple-system,'Segoe UI',Roboto,Arial,sans-serif";
   ctx.fillText(T("level_select")+" "+Game.level,W/2,716);
@@ -1675,6 +1748,7 @@ function render(){
   const st=Game.state;
   if(st==="aim"||st==="fly"||st==="settle") drawHUD();
   else if(st==="title") drawTitle();
+  else if(st==="ranking") drawRanking();
   else if(st==="results") drawResults();
   else if(st==="art") drawArt();
   if(Game.paused&&(st==="aim"||st==="fly"||st==="settle")) drawPause();
