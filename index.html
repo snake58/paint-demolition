@@ -28,11 +28,11 @@
 </head>
 <body>
 <div id="wrap"><canvas id="game" width="720" height="1180"></canvas></div>
-<div id="vstamp">v13</div>
+<div id="vstamp">v14</div>
 <script>
 /* Portal: none (itch.io / standalone).
    Sin SDK: el juego corre con localStorage y sin anuncios. */
-/* PAINT DEMOLITION BUILD v13 */
+/* PAINT DEMOLITION BUILD v14 */
 "use strict";
 /* ============================================================
    PAINT DEMOLITION — physics smash x painting.
@@ -1549,15 +1549,16 @@ function drawTitle(){
   // best
   ctx.font="bold 30px -apple-system,'Segoe UI',Roboto,Arial,sans-serif";
   ctx.fillStyle="#ffe27a";
-  ctx.fillText(T("best")+": "+Game.best,W/2,640);
-  button("ranking",W/2,690,240,56,"🏆 RANKING",()=>{ fetchRanking(); Game.state="ranking"; },{fontSize:24,color:"#b197fc",textColor:"#241b3d"});
-  drawButton(UI.buttons[UI.buttons.length-1]);
+  ctx.fillText(T("best")+": "+Game.best,W/2,620);
   // level select
   ctx.fillStyle="#fff"; ctx.font="bold 34px -apple-system,'Segoe UI',Roboto,Arial,sans-serif";
-  ctx.fillText(T("level_select")+" "+Game.level,W/2,716);
-  button("lvl-",W/2-170,706,64,64,"◀",()=>{ Game.level=Math.max(1,Game.level-1); },{fontSize:30,color:"#4d4457",textColor:"#fff"});
-  button("lvl+",W/2+170,706,64,64,"▶",()=>{ Game.level=Math.min(Game.maxLevel,Game.level+1); },{fontSize:30,color:"#4d4457",textColor:"#fff"});
+  ctx.fillText(T("level_select")+" "+Game.level,W/2,680);
+  button("lvl-",W/2-170,670,64,64,"◀",()=>{ Game.level=Math.max(1,Game.level-1); },{fontSize:30,color:"#4d4457",textColor:"#fff"});
+  button("lvl+",W/2+170,670,64,64,"▶",()=>{ Game.level=Math.min(Game.maxLevel,Game.level+1); },{fontSize:30,color:"#4d4457",textColor:"#fff"});
   drawButton(UI.buttons[UI.buttons.length-2]); drawButton(UI.buttons[UI.buttons.length-1]);
+  // ranking (debajo del nivel, sin traslape)
+  button("ranking",W/2,752,240,56,"🏆 RANKING",()=>{ fetchRanking(); Game.state="ranking"; },{fontSize:24,color:"#b197fc",textColor:"#241b3d"});
+  drawButton(UI.buttons[UI.buttons.length-1]);
   // PLAY with shine sweep
   const pp=1+0.04*Math.sin(Game.time*4);
   button("play",W/2,860,340,104,T("play"),()=>{ Game.score=0; startLevel(Game.level); },{fontSize:52,color:"#37c871",textColor:"#08331a"});
