@@ -28,11 +28,11 @@
 </head>
 <body>
 <div id="wrap"><canvas id="game" width="720" height="1180"></canvas></div>
-<div id="vstamp">v3</div>
+<div id="vstamp">v4</div>
 <script>
 /* Portal: none (itch.io / standalone).
    Sin SDK: el juego corre con localStorage y sin anuncios. */
-/* PAINT DEMOLITION BUILD v3 */
+/* PAINT DEMOLITION BUILD v4 */
 "use strict";
 /* ============================================================
    PAINT DEMOLITION — physics smash x painting.
@@ -260,6 +260,7 @@ function physStep(dt){
   const bs = Game.blocks;
   for(const b of bs){
     if(b.sleep) continue;
+    const px=b.x, py=b.y;
     b.vy += GRAV*dt;
     b.vx *= (1-0.12*dt); b.va *= (1-0.6*dt);
     const sp=Math.hypot(b.vx,b.vy), spA=Math.abs(b.va);
@@ -285,14 +286,13 @@ function physStep(dt){
       }
       b.vx *= 0.90; b.va *= 0.80;
     }
-    // sleep check
-    if(sp<14 && spA<0.25 && b.y>=GY-b.h-2){ b.vx=0; b.vy=0; b.va=0; b.sleep=true; }
-    else if(sp<10 && spA<0.2){
+    // sleep check — por posición también (atrapa el treadmill gravedad/colisión:
+    // la velocidad fluctúa pero el bloque no se mueve)
+    const moved=Math.hypot(b.x-px, b.y-py);
+    if(sp<14 && spA<0.25 && b.y>=GY-b.h-2){ b.vx=0; b.vy=0; b.va=0; b.sleep=true; b._still=0; }
+    else if(blockSupported(b) && spA<0.2 && (sp<10 || moved<0.8)){
       b._still=(b._still||0)+dt;
-      if(b._still>0.5){
-        if(blockSupported(b)){ b.sleep=true; b.vx=b.vy=b.va=0; }
-        else b._still=0; // en el aire: no dormirse, seguir cayendo
-      }
+      if(b._still>0.5){ b.sleep=true; b.vx=b.vy=b.va=0; }
     }
     else b._still=0;
   }
@@ -430,6 +430,8 @@ function explode(x,y,r,col,rainbow){
     }
   }
   dustBurst(x,y,rainbow?14:8);
+  // la explosión pinta directo todo lo cercano (la bomba es DE PINTURA)
+  paintAt(x,y,col,r*(rainbow?1.0:0.8));
   // droplets
   const n = rainbow?64:30;
   for(let i=0;i<n;i++){
@@ -570,7 +572,7 @@ function startLevel(n){
   Game.bombs=[]; Game.drops=[]; Game.parts=[]; Game.gsplats=[]; Game.popups=[]; Game.toasts=[];
   Game.shotsTotal = n>=8?4:3;
   Game.shotsLeft = Game.shotsTotal;
-  Game.target = Math.min(0.50 + n*0.018, 0.80);
+  Game.target = Math.min(0.32 + n*0.025, 0.80);
   Game.combo=0; Game.comboT=0; Game.rainbowArmed=false; Game.firedThisLevel=false;
   Game.won=false; Game.stars=0; Game.newBest=false; Game.artCanvas=null; Game.artSnapshot=null;
   Game.settleT=0; Game.levelT=0; Game.colorIdx=(n-1)%PALETTE.length;
@@ -1696,7 +1698,8 @@ function runSelfTest(){
     while(Game.bombs.length&&steps<600){ updateBombs(1/120); steps++; }
     ST("bomba explota al contacto", Game.bombs.length===0 && Game.drops.length>10, "drops="+Game.drops.length);
     ST("explosión despierta bloques", Game.blocks[0].sleep===false);
-    // combo: pintar bloque en movimiento
+    // combo: pintar bloque en movimiento (bloque fresco, sin pintar por la explosión previa)
+    Game.blocks=[makeBlock(200,900,90,60,"brick")];
     Game.combo=0; Game.comboT=0;
     const mb=Game.blocks[0]; mb.vx=400; mb.sleep=false;
     Game.drops.push({x:mb.x,y:mb.y,vx:0,vy:0,r:6,c:{r:0,g:255,b:0},life:0,tl:2});
@@ -1706,7 +1709,7 @@ function runSelfTest(){
     startLevel(3);
     ST("startLevel estado aim", Game.state==="aim");
     ST("startLevel 3 tiros", Game.shotsLeft===3, Game.shotsLeft);
-    ST("target en rango", Game.target>=0.5&&Game.target<=0.8, Game.target);
+    ST("target en rango", Game.target>=0.32&&Game.target<=0.8, Game.target);
     // idioma por defecto inglés
     ST("EN por defecto", Game.lang==="en"||FORCE_EN||true);
     // prefijo de storage
